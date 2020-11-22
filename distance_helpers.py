@@ -1,6 +1,11 @@
-from dronekit import LocationGlobal,LocationGlobalRelative
 import math
-#dNorth and dEast are in meters from current location
+from dronekit import LocationGlobal,LocationGlobalRelative
+
+def get_distance_metres(aLocation1, aLocation2):
+    dlat = aLocation2.lat - aLocation1.lat
+    dlong = aLocation2.lon - aLocation1.lon
+    return math.sqrt((dlat*dlat) + (dlong*dlong)) * 1.113195e5
+
 def get_location_metres(original_location, dNorth, dEast):
     earth_radius=6378137.0 #Radius of "spherical" earth
     #Coordinate offsets in radians
@@ -18,10 +23,3 @@ def get_location_metres(original_location, dNorth, dEast):
         raise Exception("Invalid Location object passed")
 
     return targetlocation;
-
-def make_circle(original_position,radius,omega,t):
-    x = radius*math.cos(omega*t)
-    y = radius*math.sin(omega*t)
-
-    return get_location_metres(original_position,y,x)
-

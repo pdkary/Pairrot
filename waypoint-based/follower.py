@@ -1,7 +1,13 @@
+import os, sys
+currentdir = os.path.dirname(os.path.realpath(__file__))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir)
+
 from dronekit import connect, VehicleMode, LocationGlobalRelative
 import time
-from math import pi
-from fake_tracker import Tracker
+from math import pi,cos,sin
+from random import gauss
+from fake_tracker import Tracker, get_location_metres
 from pymavlink import mavutil
 import csv
 
@@ -12,14 +18,18 @@ parser.add_argument('--connect',
 args = parser.parse_args()
 
 class Follower:
-    def __init__(self,home_pos: LocationGlobalRelative):
+    def __init__(self,home_pos: LocationGlobalRelative,distance:float,theta:float,phi:float):
+        self.distance = distance
+        self.theta = theta
+        self.phi = phi
         self.home_poos = home_pos
         self.vehicle = connect(args.connect,wait_ready=True)
-        self.tracker = Tracker(home_pos,0,2,0,0)
+        self.tracker = Tracker(home_pos,0)
+        self.var = 0
         self.flight_data = []
 
-    def init_tracker_zig_zag(self,angle,zag_steps):
-        self.tracker.init_zig_zag(angle,zag_steps)
+    def set_noise_variance(self,var):
+        self.var = var
 
     def takeoff(self):
         print("Basic pre-arm checks")
@@ -44,8 +54,8 @@ class Follower:
             print(" Waiting for arming...")
             time.sleep(1)
 
-        alt = self.tracker.get_drone_location().alt
-        print("Taking off!")
+        alt = self.get_desired_location().alt
+        print("Taking off to {}".format(alt));
         self.vehicle.simple_takeoff(alt)  # Take off to target altitude
 
         # Wait until the vehicle reaches a safe height before processing the goto
@@ -71,26 +81,39 @@ class Follower:
         )
         self.vehicle.send_mavlink(msg)
     
+    def get_desired_location(self):
+        dx = self.distance*cos(self.phi)*cos(self.theta + self.tracker.orientation)
+        dy = self.distance*cos(self.phi)*sin(self.theta+self.tracker.orientation)
+        dz = self.distance*sin(self.phi)
+
+        tracker_pos = self.tracker.position
+        tracker_pos.lat += gauss(0,self.var)
+        tracker_pos.lon += gauss(0,self.var)
+        tracker_pos.alt += gauss(0,self.var)
+        dp = get_location_metres(tracker_pos,dy,dx)
+        dp.alt += dz
+        return dp
+
     def go_to_tracker(self,sleep_time):
-        tracking_pos = self.tracker.get_drone_location()
+        tracking_pos = self.get_desired_location()
         self.vehicle.simple_goto(tracking_pos)
         time.sleep(sleep_time)
 
     def follow(self,steps):
         for i in range(steps):
             print("step {}".format(i))
-            self.tracker.update_tracker_position(5)
-            self.go_to_tracker(2)
+            d = self.tracker.update_tracker_position(1)
+            self.go_to_tracker(d/Tracker.speed)
             self.append_data()
     
     def append_data(self):
         data = {
                 "track_lat":self.tracker.position.lat,
-                "vehicle_lat":self.vehicle.location._lat,
+                "vehicle_lat":self.vehicle.location.global_relative_frame.lat,
                 "track_lon":self.tracker.position.lon,
-                "vehicle_lon":self.vehicle.location._lon,
+                "vehicle_lon":self.vehicle.location.global_relative_frame.lon,
                 "track_alt":self.tracker.position.alt,
-                "vehicle_alt":self.vehicle.location._alt
+                "vehicle_alt":self.vehicle.location.global_relative_frame.alt
             }
         self.flight_data.append(data)
 
@@ -108,10 +131,11 @@ class Follower:
 home_pos = LocationGlobalRelative(43.257090,-79.936480,3)
 
 if __name__ == '__main__':
-    f = Follower(home_pos)
-    f.init_tracker_zig_zag(-pi/2,10) 
+    f = Follower(home_pos,2,0,pi/2)
+    f.set_noise_variance(.33/1000)
+    f.tracker.set_circle(1)
     f.takeoff()
-    f.follow(100)
+    f.follow(50)
     f.set_rtl()
-    f.write_to_csv("zig_zag_10.csv")
+    f.write_to_csv("circle_10.csv")
     
