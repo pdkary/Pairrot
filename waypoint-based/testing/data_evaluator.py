@@ -24,9 +24,16 @@ def evaluate(filename):
         alt1 = float(line[4])
         alt2 = float(line[5])
         d = get_3d_distance(lat1,lon1,alt1,lat2,lon2,alt2)
-        print(d)
         distances.append(d)
     
     errors = [2-x for x in distances]
     rmse = sqrt(np.average([x**2 for x in errors]))
     return rmse
+
+filenames = ["zz_noiseless_2.csv","zz_noisy_2.csv","zz_noiseless_10.csv","zz_noisy_10.csv","circle_noiseless_1.csv","circle_noisy_1.csv","circle_noiseless_5.csv","circle_noisy_5.csv"]
+
+if __name__ == '__main__':
+    for x in filenames:
+        rmse = evaluate("csv/"+x)
+        print(x + ": " + str(rmse))
+    
