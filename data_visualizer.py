@@ -22,11 +22,11 @@ axes = [None,None,None,None]
 
 axes[0] = fig.add_subplot(1,4,1)#,projection='3d')
 axes[0].set_title("Nosiy Tracker and Drone position, R=5,θ=0,φ=90,σ=.5")
-axes[0].plot(flight_data["tracker_E"],flight_data["tracker_N"],'C1',label="Tracker")
 # axes[0].plot(flight_data["tracker_E_noisy"],flight_data["tracker_N_noisy"],-flight_data["tracker_D_noisy"],'C1',label="Tracker")
 # axes[0].plot(flight_data["drone_E"],flight_data["drone_N"],-flight_data["drone_D"],"C2",label="Drone")
+axes[0].plot(flight_data["tracker_E"],flight_data["tracker_N"],'C1',label="Tracker")
 axes[0].plot(flight_data["drone_E"],flight_data["drone_N"],"C2",label="Drone")
-axes[0].legend()
+# axes[0].legend()
 
 exs = abs(desired_x - (flight_data["tracker_E"] - flight_data["drone_E"]))
 eys = abs(desired_y - (flight_data["tracker_N"] - flight_data["drone_N"]))
